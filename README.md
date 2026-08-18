@@ -1,4 +1,4 @@
-# Agent Bitrix24 — Gestion de tâches en langage naturel
+# Agent Bitrix24
 
 Agent conversationnel connecté à l'API Bitrix24, capable de gérer des tâches (CRUD) en langage naturel.
 L'agent interprète les requêtes, résout les dépendances entre outils de manière autonome, et interagit avec Bitrix24 via un client API.
@@ -21,9 +21,16 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 
 ---
 
-## 1. Présentation et technologies
 
-### Technologies utilisées
+## 1. Architecture de l'agent
+
+<p align="center">
+  <img src="architecture-agent.png"
+       alt="Architecture de l'agent"
+       width="1600">
+</p>
+
+### 2.Technologies utilisées
 
 | Couche | Technologie | Rôle |
 |---|---|---|
@@ -34,46 +41,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 | API externe | Bitrix24 REST (webhook) | CRUD tâches + recherche utilisateurs |
 | Mémoire | MemorySaver (RAM) + JSON (disque) | Contexte conversationnel + historique |
 
-### LangGraph — Orchestration de l'agent
-
-L'agent utilise `langgraph.prebuilt.create_react_agent`. Cette architecture offre trois avantages :
-
-1. **Gestion du contexte** — `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
-2. **Graphe cyclique** — Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
-3. **Extensibilité** — la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
-
-
-
-### Groq — Inférence LLM gratuite et stratégie multi-modèles
-
-L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
-
-Pour garantir la disponibilité continue, l'application propose **3 modèles** accessibles via un sélecteur dans l'interface :
-
-
-| Modèle | Taille | Fournisseur | Rôle |
-|---|---|---|---|
-| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Modèle principal |
-| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
-| **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
-
-Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur 429, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
----
-
-## 2. Architecture de l'agent
-
-<p align="center">
-  <img src="architecture-agent.png"
-       alt="Architecture de l'agent"
-       width="1600">
-</p>
-
----
-
-## 2.1. Composants clés du l'agent
-
-
-### 2.1.1 Les principaux composants de LangGraph
+2.1. Les principaux composants de LangGraph
 
 | Composant | Rôle | Exemple dans l'agent |
 |---|---|---|
@@ -103,6 +71,38 @@ class TaskAgent:
 
 - checkpointer=self.memory : sauvegarde automatiquement l'état (messages) après chaque nœud du graphe.
 - thread_id dans le config : isole la mémoire de chaque conversation.
+
+Cette architecture offre trois avantages :
+
+1. **Gestion du contexte** — `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
+2. **Graphe cyclique** — Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
+3. **Extensibilité** — la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
+
+
+
+### Groq (Inférence LLM gratuite et stratégie multi-modèles):
+
+L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
+
+Pour garantir la disponibilité continue, l'application propose **3 modèles** accessibles via un sélecteur dans l'interface :
+
+
+| Modèle | Taille | Fournisseur | Rôle |
+|---|---|---|---|
+| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Modèle principal |
+| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
+| **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
+
+Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur 429, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
+---
+
+
+
+---
+
+## 2.1. Composants clés du l'agent
+
+
 - Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
 
