@@ -95,8 +95,6 @@ Pour garantir la disponibilité continue, l'application propose **3 modèles** a
 
 Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur 429, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
 
----
-
 ### 3.2 Les 7 tools de l'agent
 
 Chaque outil est défini avec `@tool` de LangChain. Le LLM lit le **docstring** de chaque outil pour décider quand et comment l'appeler.
@@ -143,6 +141,7 @@ Modifie une tâche existante. Champs modifiables : titre, description, status, d
 
 Exemple de flux pour `« Repousse la tâche 12 à lundi et mets-la en haute priorité »` :
 
+```
 Boucle:
   AGENT → analyse la requête, identifie: task_id=12,   deadline="lundi", priority="high"
          → tool_call: update_task(
@@ -158,7 +157,8 @@ Boucle:
 
 Sortie:
   AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-
+  
+```
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
 
@@ -480,32 +480,3 @@ python app.py
 ```
 
 Ouvrir [http://localhost:5000](http://localhost:5000) dans le navigateur.
-
-
-## 11. API REST du serveur Flask
-
-| Endpoint | Méthode | Description |
-|---|---|---|
-| `/` | GET | Page principale (interface chat) |
-| `/api/chat` | POST | Envoyer un message à l'agent (body: `{message, model?}`) |
-| `/api/new-chat` | POST | Créer une nouvelle conversation |
-| `/api/conversations` | GET | Lister les conversations non vides |
-| `/api/conversations/<id>/switch` | POST | Changer de conversation active |
-| `/api/conversations/<id>` | GET | Récupérer les messages d'une conversation |
-| `/api/conversations/<id>` | DELETE | Supprimer une conversation |
-
----
-
-## Dépendances
-
-```
-requests>=2.28.0          # Appels HTTP vers Bitrix24
-python-dateutil>=2.8.0    # Résolution des dates relatives
-python-dotenv>=1.0.0      # Chargement des variables .env
-flask>=3.0.0              # Serveur web
-groq>=0.4.0               # SDK Groq (optionnel)
-langchain>=0.3.0          # Framework LLM
-langchain-groq>=0.2.0     # Intégration Groq pour LangChain
-langchain-core>=0.3.0     # Core LangChain
-langgraph>=0.2.0          # Orchestration agent ReAct
-```
