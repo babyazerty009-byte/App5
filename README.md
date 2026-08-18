@@ -57,49 +57,12 @@ Pour garantir la disponibilité continue, l'application propose **3 modèles** a
 | **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
 | **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
 
-Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur `429`, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
+Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur 429, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
 ---
 
 ## 2. Architecture de l'agent
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        FRONTEND                                 │
-│    Interface Chat (HTML/CSS/JS) + Sidebar Historique            │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ POST /api/chat {message, thread_id}
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      BACKEND (Flask)                            │
-│    app.py — Routes, sessions, persistance conversations.json    │
-│    ┌──────────────────────────────────────────────────────────┐ │
-│    │  TaskAgent (services/agent.py)                           │ │
-│    │                                                          │ │
-│    │  ┌───────────┐     ┌─────────────────┐                   │ │
-│    │  │ ChatGroq   │◄──►│  ReAct Agent     │◄── MemorySaver   │ │
-│    │  │ (GPT-OSS)  │     │  (LangGraph)     │   (RAM, par      │ │
-│    │  └───────────┘     └────────┬────────┘    thread_id)     │ │
-│    │                             │ Tool Calls                  │ │
-│    │  ┌──────────────────────────┴────────────────────────┐   │ │
-│    │  │                    7 OUTILS                        │   │ │
-│    │  │  create_task  list_tasks   list_overdue_tasks      │   │ │
-│    │  │  search_tasks update_task  delete_task  find_user  │   │ │
-│    │  └──────────────────────────┬────────────────────────┘   │ │
-│    │                             │                             │ │
-│    │  ┌──────────────────────────▼────────────────────────┐   │ │
-│    │  │  Bitrix24Client (services/bitrix24_client.py)     │   │ │
-│    │  │  Instance unique partagée (Singleton pattern)      │   │ │
-│    │  │  Pagination start=-1, retry, filtres server-side   │   │ │
-│    │  └──────────────────────────┬────────────────────────┘   │ │
-│    └─────────────────────────────┼────────────────────────────┘ │
-└──────────────────────────────────┼──────────────────────────────┘
-                                   │ HTTPS
-                                   ▼
-                        ┌─────────────────────┐
-                        │   Bitrix24 REST API  │
-                        │   (Inbound Webhook)  │
-                        └─────────────────────┘
-```
+![Architecture de l'agent](/architecture-agent.png)
 
 ### Client unique (Singleton)
 
