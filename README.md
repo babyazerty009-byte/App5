@@ -62,7 +62,7 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
 
 ## 2. Architecture de l'agent
 
-![Architecture de l'agent](/architecture-agent.png)
+![Architecture de l'agent](Architecture%20de%20l'agent.png)
 
 ### Client unique (Singleton)
 
