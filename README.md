@@ -99,7 +99,7 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
 
 Chaque outil est défini avec `@tool` de LangChain. Le LLM lit le **docstring** de chaque outil pour décider quand et comment l'appeler.
 
-#### 2.1.2.1 create_task
+#### 3.2.1 create_task
 
 Crée une tâche avec résolution intelligente des dates et des assignees.
 
@@ -114,7 +114,7 @@ Crée une tâche avec résolution intelligente des dates et des assignees.
 
 L'outil résout les dates relatives ("vendredi", "demain") en dates ISO via `python-dateutil`.
 
-#### 2.1.2.2 list_tasks
+#### 3.2.2 list_tasks
 
 Liste les tâches avec **filtres server-side** envoyés à l'API Bitrix24.
 
@@ -127,15 +127,15 @@ Liste les tâches avec **filtres server-side** envoyés à l'API Bitrix24.
 
 Les filtres sont traduits en paramètres API (`RESPONSIBLE_ID`, `STATUS`, `GROUP_ID`) et envoyés avec la requête. Bitrix24 filtre dans sa base de données SQL avant de retourner les résultats.
 
-#### 2.1.2.3 list_overdue_tasks
+#### 3.2.3 list_overdue_tasks
 
 Liste les tâches en retard (deadline passée, non terminées). Utilise le filtre `<DEADLINE: now()` + `!STATUS: 5`.
 
-#### 2.1.2.4 search_tasks
+#### 3.2.4 search_tasks
 
 Recherche par mot-clé dans le titre via le filtre Bitrix24 `%TITLE%`.
 
-#### 2.1.2.5 update_task
+#### 3.2.5 update_task
 
 Modifie une tâche existante. Champs modifiables : titre, description, status, deadline, priorité, assignee, groupe, tags.
 
@@ -157,16 +157,15 @@ Boucle:
 
 Sortie:
   AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-  
-```
+
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
 
-#### 2.1.2.6 delete_task
+#### 3.2.6 delete_task
 
 Supprime une tâche par son ID.
 
-#### 2.1.2.7 find_user
+#### 3.2.7 find_user
 
 Cherche un utilisateur par prénom ou nom de famille. Retourne l'ID, le nom complet et l'email. Utilisé implicitement par les autres outils quand l'utilisateur mentionne un prénom.
 
