@@ -14,14 +14,13 @@ BITRIX24_WEBHOOK_URL = os.getenv("BITRIX24_WEBHOOK_URL", "")
 # Groq API Key (free: https://console.groq.com)
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
-# Available models on Groq (free tier)
+# Available models on Groq (free tier) — must support tool calling
 AVAILABLE_MODELS = {
-    # Llama (Meta) 
-    "llama-3.3-70b-versatile": "Llama 3.3 70B — Most capable (recommended)",
-    #Qwen (Alibaba) 
+    # GPT-OSS (OpenAI open-source)
+    "openai/gpt-oss-120b": "GPT-OSS 120B — Most capable (recommended)",
+    "openai/gpt-oss-20b": "GPT-OSS 20B — Fast and lightweight",
+    # Qwen (Alibaba)
     "qwen/qwen3.6-27b": "Qwen 3.6 27B — Good reasoning",
-    # GPT-OSS (OpenAI open-source) 
-    "openai/gpt-oss-120b": "GPT-OSS 120B — Very capable",
 }
 
 # Default model

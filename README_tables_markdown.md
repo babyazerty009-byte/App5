@@ -1,13 +1,11 @@
 # Agent Bitrix24 — Gestion de tâches en langage naturel
 
 Agent conversationnel connecté à l'API Bitrix24, capable de gérer des tâches (CRUD) en langage naturel.
-L'agent interprète les requêtes, résout les dépendances entre outils de manière autonome, et interagit avec Bitrix24 via un client API.
 
 ---
 
 ## Table des matières
 
-1. [Vue d'ensemble](#1-vue-densemble)
 2. [Architecture de l'agent](#2-architecture-de-lagent)
 3. [Le pattern ReAct — Boucle décisionnelle](#3-le-pattern-react--boucle-décisionnelle)
 4. [Les 7 outils de l'agent](#4-les-7-outils-de-lagent)
@@ -19,61 +17,46 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 10. [Structure du projet](#10-structure-du-projet)
 11. [API REST du serveur Flask](#11-api-rest-du-serveur-flask)
 
----
 
 
-
-### Technologies utilisées
+### Stack technique
 
 | Couche | Technologie | Rôle |
 |---|---|---|
 | Frontend | HTML, CSS, JavaScript | Interface chat avec sidebar d'historique |
-| Backend | Flask | API REST, sessions |
-| Agent | LangGraph | Orchestration ReAct des outils |
+| Backend | Flask (Python) | API REST, sessions, persistance |
+| Agent | LangGraph `create_react_agent` | Orchestration ReAct des outils |
 | LLM | Groq API (multi-modèles) | Raisonnement et tool calling |
 | API externe | Bitrix24 REST (webhook) | CRUD tâches + recherche utilisateurs |
 | Mémoire | MemorySaver (RAM) + JSON (disque) | Contexte conversationnel + historique |
 
-### LangGraph — Orchestration de l'agent
+### Pourquoi LangGraph plutôt que LangChain
 
-L'agent utilise `langgraph.prebuilt.create_react_agent`. Cette architecture offre trois avantages :
+`AgentExecutor` de LangChain est officiellement déprécié. `langgraph.prebuilt.create_react_agent` est le successeur recommandé. Trois avantages concrets pour cet agent :
 
-1. **Gestion du contexte** — `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
-2. **Graphe cyclique** — Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
-3. **Extensibilité** — la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
+1. **Mémoire native** — `MemorySaver` avec `thread_id` remplace la gestion manuelle de `SQLChatMessageHistory` (1 ligne au lieu de 20).
+2. **Graphe cyclique** — Le LLM peut enchaîner plusieurs outils (find_user → create_task) de manière autonome via la boucle Agent→Tools→Agent.
+3. **Extensibilité** — Ajout possible de nœuds custom (human-in-the-loop, validation conditionnelle avant suppression).
 
+### Pourquoi Groq et stratégie multi-modèles
 
+Groq est gratuit (pas de carte bancaire) et ultra rapide grâce à ses puces LPU (Language Processing Unit) spécialisées. Il supporte le tool calling natif, essentiel pour l'architecture agent.
 
-### Groq — Inférence LLM et choix des modèles
+Le tier gratuit de Groq impose des **limites d'utilisation par modèle** (nombre de requêtes/minute et tokens/jour). Pour garantir la disponibilité continue de l'agent, l'application propose **3 modèles interchangeables** via un sélecteur dans l'interface :
 
-Le projet utilise **Groq** pour l'inférence des modèles de langage. L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
+| Modèle | Taille | Fournisseur | Points forts | Cas d'usage |
+|---|---|---|---|---|
+| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Très capable, large contexte | Modèle principal — utilisé tant que le quota n'est pas atteint |
+| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Rapide et léger | Fallback quand GPT-OSS 120B atteint sa limite |
+| **GPT-OSS 120B** | 120B | OpenAI (open-source) | Très capable, large contexte | Alternative haute capacité |
 
-L'application permet de changer de modèle directement depuis l'interface. Trois modèles sont disponibles :
+Quand un modèle atteint sa limite (erreur 429), l'agent affiche un message invitant l'utilisateur à basculer vers un autre modèle via le sélecteur. Chaque modèle a son propre quota indépendant chez Groq, ce qui multiplie par 3 la capacité d'utilisation globale.
 
-| Modèle | Taille | Fournisseur | Rôle |
-|---|---:|---|---|
-| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Modèle principal |
-| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
-| **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
-
-Les modèles disponibles sur le tier utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur `429`, l'utilisateur peut sélectionner un autre modèle depuis l'interface et poursuivre la conversation.
-
-
-
-
-### Groq — Inférence LLM gratuite et stratégie multi-modèles
-
-L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides.
-
-Pour garantir la disponibilité continue, l'application propose **3 modèles interchangeables** via un sélecteur dans l'interface :
-
-| Modèle | Taille | Fournisseur | Rôle |
-|---|---|---|---|
-| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Modèle principal |
-| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
-| **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
-
-Lorsqu'un modèle atteint sa limite (erreur 429), l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle. Chaque modèle possède son propre quota indépendant, ce qui multiplie par 3 la capacité d'utilisation globale.
+```python
+# Gestion automatique des rate limits dans agent.py
+if "rate_limit" in error_str or "429" in error_str:
+    return "⚠️ Rate limit reached. Switch to another model."
+```
 
 ---
 
