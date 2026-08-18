@@ -63,7 +63,9 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
 ## 2. Architecture de l'agent
 
 <p align="center">
-  <img src="Architecture de l'agent.png" alt="Architecture de l'agent" width="5000">
+  <img src="Architecture%20de%20l'agent.png"
+       alt="Architecture de l'agent"
+       width="1600">
 </p>
 
 ---
