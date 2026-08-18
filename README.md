@@ -30,7 +30,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
        width="1600">
 </p>
 
-### 2.Technologies utilisées
+## 2.Technologies utilisées
 
 | Couche | Technologie | Rôle |
 |---|---|---|
@@ -41,7 +41,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 | API externe | Bitrix24 REST (webhook) | CRUD tâches + recherche utilisateurs |
 | Mémoire | MemorySaver (RAM) + JSON (disque) | Contexte conversationnel + historique |
 
-2.1. Les principaux composants de LangGraph
+## 3. Les principaux composants de LangGraph
 
 | Composant | Rôle | Exemple dans l'agent |
 |---|---|---|
@@ -80,7 +80,7 @@ Cette architecture offre trois avantages :
 
 
 
-### Groq (Inférence LLM gratuite et stratégie multi-modèles):
+### 3.1  Groq (Inférence LLM gratuite et stratégie multi-modèles):
 
 L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
 
@@ -94,20 +94,131 @@ Pour garantir la disponibilité continue, l'application propose **3 modèles** a
 | **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
 
 Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur 429, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
----
-
-
 
 ---
 
-## 2.1. Composants clés du l'agent
+### 3.2 Les 7 tools de l'agent
+
+Chaque outil est défini avec `@tool` de LangChain. Le LLM lit le **docstring** de chaque outil pour décider quand et comment l'appeler.
+
+#### 2.1.2.1 create_task
+
+Crée une tâche avec résolution intelligente des dates et des assignees.
+
+| Paramètre | Description |
+|---|---|
+| title |Titre de la tâche (obligatoire) |
+| assignee_name |Prénom de l'assignee (résolu automatiquement en ID) |
+| deadline | Date en langage naturel ("vendredi", "lundi prochain") |
+| priority | "low", "normal", "high" |
+| group_name | Nom du projet/groupe |
+| tags |  Tags séparés par des virgules |
+
+L'outil résout les dates relatives ("vendredi", "demain") en dates ISO via `python-dateutil`.
+
+#### 2.1.2.2 list_tasks
+
+Liste les tâches avec **filtres server-side** envoyés à l'API Bitrix24.
+
+| Paramètre| Description |
+|---|---|
+| status  | "new", "pending", "in_progress", "completed", "deferred" |
+| assignee_name| Filtrer par assignee |
+| group_name | Filtrer par projet |
+| limit  | Nombre max de résultats (défaut: 20) |
+
+Les filtres sont traduits en paramètres API (`RESPONSIBLE_ID`, `STATUS`, `GROUP_ID`) et envoyés avec la requête. Bitrix24 filtre dans sa base de données SQL avant de retourner les résultats.
+
+#### 2.1.2.3 list_overdue_tasks
+
+Liste les tâches en retard (deadline passée, non terminées). Utilise le filtre `<DEADLINE: now()` + `!STATUS: 5`.
+
+#### 2.1.2.4 search_tasks
+
+Recherche par mot-clé dans le titre via le filtre Bitrix24 `%TITLE%`.
+
+#### 2.1.2.5 update_task
+
+Modifie une tâche existante. Champs modifiables : titre, description, status, deadline, priorité, assignee, groupe, tags.
+
+Exemple de flux pour `« Repousse la tâche 12 à lundi et mets-la en haute priorité »` :
+
+Boucle:
+  AGENT → analyse la requête, identifie: task_id=12,   deadline="lundi", priority="high"
+         → tool_call: update_task(
+             task_id=12,
+             deadline="lundi",    # résolu en ISO: "2026-08-18T18:00:00"
+             priority="high"      # traduit en code Bitrix24: 2
+           )
+  TOOLS → exécute:
+         bitrix24_client.update_task(12, {
+             "DEADLINE": "2026-08-18T18:00:00",
+             "PRIORITY": 2
+         }) → Bitrix24 API 
+
+Sortie:
+  AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
+
+
+L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
+
+#### 2.1.2.6 delete_task
+
+Supprime une tâche par son ID.
+
+#### 2.1.2.7 find_user
+
+Cherche un utilisateur par prénom ou nom de famille. Retourne l'ID, le nom complet et l'email. Utilisé implicitement par les autres outils quand l'utilisateur mentionne un prénom.
+
+---
+
+### 3.3 Gestion de la mémoire conversationnelle
+
+#### Deux niveaux de mémoire
+
+| Niveau | Stockage | Persistance | Contenu |
+|---|---|---|---|
+| **MemorySaver** | RAM (dict Python) | Perdu au redémarrage | Messages LLM par `thread_id` |
+| **conversations.json** | Fichier disque | Persiste au redémarrage | Titres, dates, messages affichés |
+
+### MemorySaver — Contexte LLM
+
+Le checkpointer `MemorySaver` sauvegarde automatiquement tous les messages (user, AI, tool) après chaque nœud du graphe. Chaque `thread_id` a son propre historique isolé.
+
+```python
+# L'agent charge automatiquement la mémoire du thread
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": message}]},
+    config={"configurable": {"thread_id": thread_id}}
+)
+```
+
+Cela permet les références contextuelles :
+
+```
+User: "Crée une tâche : vérifier le scanner"
+Bot:  "✅ Tâche #15 créée"
+User: "Change son titre en 'vérifier les imprimantes'"
+       ↑ Le LLM sait que "son" = tâche #15 grâce à la mémoire
+```
+
+### conversations.json — Historique persisté
+
+L'historique de la sidebar est sauvegardé sur disque pour survivre aux redémarrages. Seules les conversations avec au moins 1 message sont affichées.
+
+### Auto-recovery
+
+Si l'historique en mémoire est corrompu (ex: changement de compte Bitrix24 mid-session), l'agent détecte l'erreur `INVALID_CHAT_HISTORY`, efface la mémoire du thread concerné, et réessaie automatiquement.
+
+---
+
 
 
 - Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
 
 
-### 2.1.2 Client Bitrix24
+## 4. Client Bitrix24
 Un seul `Bitrix24Client()` est partagé par tous les outils :
 
 - **Réutilise la session HTTP** (TCP keep-alive) → évite de recréer une connexion à chaque appel.
@@ -219,117 +330,10 @@ User: "Marque toutes les tâches de Karim comme terminées"
 
 L'agent collecte d'abord toutes les tâches, puis fait les mises à jour une par une. La pagination est encapsulée dans `list_tasks` — le LLM ne voit que la liste complète de résultats.
 
----
 
-## 4. Les 7 outils de l'agent
-
-Chaque outil est défini avec `@tool` de LangChain. Le LLM lit le **docstring** de chaque outil pour décider quand et comment l'appeler.
-
-### 4.1 create_task
-
-Crée une tâche avec résolution intelligente des dates et des assignees.
-
-| Paramètre | Description |
-|---|---|
-| title |Titre de la tâche (obligatoire) |
-| assignee_name |Prénom de l'assignee (résolu automatiquement en ID) |
-| deadline | Date en langage naturel ("vendredi", "lundi prochain") |
-| priority | "low", "normal", "high" |
-| group_name | Nom du projet/groupe |
-| tags |  Tags séparés par des virgules |
-
-L'outil résout les dates relatives ("vendredi", "demain") en dates ISO via `python-dateutil`.
-
-### 4.2 list_tasks
-
-Liste les tâches avec **filtres server-side** envoyés à l'API Bitrix24.
-
-| Paramètre| Description |
-|---|---|
-| status  | "new", "pending", "in_progress", "completed", "deferred" |
-| assignee_name| Filtrer par assignee |
-| group_name | Filtrer par projet |
-| limit  | Nombre max de résultats (défaut: 20) |
-
-Les filtres sont traduits en paramètres API (`RESPONSIBLE_ID`, `STATUS`, `GROUP_ID`) et envoyés avec la requête. Bitrix24 filtre dans sa base de données SQL avant de retourner les résultats.
-
-### 4.3 list_overdue_tasks
-
-Liste les tâches en retard (deadline passée, non terminées). Utilise le filtre `<DEADLINE: now()` + `!STATUS: 5`.
-
-### 4.4 search_tasks
-
-Recherche par mot-clé dans le titre via le filtre Bitrix24 `%TITLE%`.
-
-### 4.5 update_task
-
-Modifie une tâche existante. Champs modifiables : titre, description, status, deadline, priorité, assignee, groupe, tags.
-
-Exemple de flux pour `« Repousse la tâche 12 à lundi et mets-la en haute priorité »` :
-
-Boucle:
-  AGENT → analyse la requête, identifie: task_id=12,   deadline="lundi", priority="high"
-         → tool_call: update_task(
-             task_id=12,
-             deadline="lundi",    # résolu en ISO: "2026-08-18T18:00:00"
-             priority="high"      # traduit en code Bitrix24: 2
-           )
-  TOOLS → exécute:
-         bitrix24_client.update_task(12, {
-             "DEADLINE": "2026-08-18T18:00:00",
-             "PRIORITY": 2
-         }) → Bitrix24 API 
-
-Sortie:
-  AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-
-
-L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
-
-### 4.6 delete_task
-
-Supprime une tâche par son ID.
-
-### 4.7 find_user
-
-Cherche un utilisateur par prénom ou nom de famille. Retourne l'ID, le nom complet et l'email. Utilisé implicitement par les autres outils quand l'utilisateur mentionne un prénom.
 
 ---
 
-## 5. Composants clés du code
-
-### Les briques principales de LangChain / LangGraph
-
-| Composant | Rôle | Exemple dans l'agent |
-|---|---|---|
-| **LLM / ChatModel** | Le cerveau qui génère du texte | `ChatGroq(model="openai/gpt-oss-120b")` |
-| **Prompt Template** | Instructions données au LLM | `SYSTEM_PROMPT` dans `prompt.py` |
-| **Tools** | Fonctions que le LLM peut appeler | `list_tasks`, `create_task`, `find_user`, etc. |
-| **Memory** | Garder le contexte conversationnel | `MemorySaver()` |
-
-### 5.1 `services/agent.py` — Le cerveau de l'agent
-
-Ce fichier crée et configure l'agent ReAct avec mémoire conversationnelle :
-
-```python
-from langchain_groq import ChatGroq                  # LLM via Groq (gratuit)
-from langgraph.prebuilt import create_react_agent     # Agent ReAct (graphe cyclique)
-from langgraph.checkpoint.memory import MemorySaver   # Mémoire par thread
-
-class TaskAgent:
-    def __init__(self):
-        self.memory = MemorySaver()                   # Stockage en RAM
-        llm = ChatGroq(model="openai/gpt-oss-120b")
-        self.agent = create_react_agent(
-            model=llm,                                # Le LLM qui raisonne
-            tools=ALL_TOOLS,                          # 7 outils disponibles
-            prompt=SYSTEM_PROMPT,                     # Instructions de comportement
-            checkpointer=self.memory,                 # Mémoire par thread_id
-        )
-```
-
-- `checkpointer=self.memory` → sauvegarde automatiquement l'état (messages) après chaque nœud du graphe.
-- `thread_id` dans le `config` → isole la mémoire de chaque conversation.
 - Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
 
@@ -429,45 +433,7 @@ def _call_with_retry(self, method, params, max_retries=3):
 
 Cela laisse le temps au serveur Bitrix24 de récupérer au lieu de le surcharger avec des requêtes immédiates.
 
----
 
-## 7. Gestion de la mémoire conversationnelle
-
-### Deux niveaux de mémoire
-
-| Niveau | Stockage | Persistance | Contenu |
-|---|---|---|---|
-| **MemorySaver** | RAM (dict Python) | Perdu au redémarrage | Messages LLM par `thread_id` |
-| **conversations.json** | Fichier disque | Persiste au redémarrage | Titres, dates, messages affichés |
-
-### MemorySaver — Contexte LLM
-
-Le checkpointer `MemorySaver` sauvegarde automatiquement tous les messages (user, AI, tool) après chaque nœud du graphe. Chaque `thread_id` a son propre historique isolé.
-
-```python
-# L'agent charge automatiquement la mémoire du thread
-result = agent.invoke(
-    {"messages": [{"role": "user", "content": message}]},
-    config={"configurable": {"thread_id": thread_id}}
-)
-```
-
-Cela permet les références contextuelles :
-
-```
-User: "Crée une tâche : vérifier le scanner"
-Bot:  "✅ Tâche #15 créée"
-User: "Change son titre en 'vérifier les imprimantes'"
-       ↑ Le LLM sait que "son" = tâche #15 grâce à la mémoire
-```
-
-### conversations.json — Historique persisté
-
-L'historique de la sidebar est sauvegardé sur disque pour survivre aux redémarrages. Seules les conversations avec au moins 1 message sont affichées.
-
-### Auto-recovery
-
-Si l'historique en mémoire est corrompu (ex: changement de compte Bitrix24 mid-session), l'agent détecte l'erreur `INVALID_CHAT_HISTORY`, efface la mémoire du thread concerné, et réessaie automatiquement.
 
 ---
 
