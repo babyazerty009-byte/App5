@@ -7,7 +7,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 
 ## Table des matières
 
-1. [Vue d'ensemble](#1-vue-densemble)
+1. [Présentation et technologies](#1-Présentation-et-technologies)
 2. [Architecture de l'agent](#2-architecture-de-lagent)
 3. [Le pattern ReAct — Boucle décisionnelle](#3-le-pattern-react--boucle-décisionnelle)
 4. [Les 7 outils de l'agent](#4-les-7-outils-de-lagent)
@@ -21,7 +21,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 
 ---
 
-
+## 1. Présentation et technologies
 
 ### Technologies utilisées
 
@@ -44,28 +44,12 @@ L'agent utilise `langgraph.prebuilt.create_react_agent`. Cette architecture offr
 
 
 
-### Groq — Inférence LLM et choix des modèles
-
-Le projet utilise **Groq** pour l'inférence des modèles de langage. L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
-
-L'application permet de changer de modèle directement depuis l'interface. Trois modèles sont disponibles :
-
-| Modèle | Taille | Fournisseur | Rôle |
-|---|---:|---|---|
-| **GPT-OSS 120B** (défaut) | 120B | OpenAI (open-source) | Modèle principal |
-| **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
-| **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
-
-Les modèles disponibles sur le tier utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur `429`, l'utilisateur peut sélectionner un autre modèle depuis l'interface et poursuivre la conversation.
-
-
-
-
 ### Groq — Inférence LLM gratuite et stratégie multi-modèles
 
-L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides.
+L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
 
-Pour garantir la disponibilité continue, l'application propose **3 modèles interchangeables** via un sélecteur dans l'interface :
+Pour garantir la disponibilité continue, l'application propose **3 modèles** accessibles via un sélecteur dans l'interface :
+
 
 | Modèle | Taille | Fournisseur | Rôle |
 |---|---|---|---|
@@ -73,8 +57,7 @@ Pour garantir la disponibilité continue, l'application propose **3 modèles int
 | **GPT-OSS 20B** | 20B | OpenAI (open-source) | Fallback rapide et léger |
 | **Qwen 3.6 27B** | 27B | Alibaba | Alternative avec bon raisonnement |
 
-Lorsqu'un modèle atteint sa limite (erreur 429), l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle. Chaque modèle possède son propre quota indépendant, ce qui multiplie par 3 la capacité d'utilisation globale.
-
+Les modèles disponibles utilisé sont soumis à des limites de requêtes et de tokens. Si une requête retourne une erreur `429`, l'agent détecte l'erreur et invite l'utilisateur à basculer vers un autre modèle pour poursuivre la conversation. 
 ---
 
 ## 2. Architecture de l'agent
