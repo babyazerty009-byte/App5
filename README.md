@@ -66,6 +66,8 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
   <img src="Architecture de l'agent.png" alt="Architecture de l'agent" width="3000">
 </p>
 
+---
+
 ### Client Bitrix24
 
 Un seul `Bitrix24Client()` est partagé par tous les outils :
