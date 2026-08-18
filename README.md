@@ -70,10 +70,10 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
 
 ---
 
-## 2.1. Composants clés du code
+## 2.1. Composants clés du l'agent
 
 
-### Les principaux composants de LangGraph
+### 2.1.1 Les principaux composants de LangGraph
 
 | Composant | Rôle | Exemple dans l'agent |
 |---|---|---|
@@ -82,9 +82,7 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
 | **Tools** | Fonctions que le LLM peut appeler | `list_tasks`, `create_task`, `find_user`, etc. |
 | **Memory** | Garder le contexte conversationnel | `MemorySaver()` |
 
-### 5.1 `services/agent.py` — Le cerveau de l'agent
-
-Ce fichier crée et configure l'agent ReAct avec mémoire conversationnelle :
+L'agent est créé et configuré en suivant une architecture ReAct avec une mémoire conversationnelle.
 
 ```python
 from langchain_groq import ChatGroq                  # LLM via Groq (gratuit)
@@ -107,23 +105,22 @@ class TaskAgent:
 - thread_id dans le config : isole la mémoire de chaque conversation.
 - Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
-### 5.2 `services/bitrix24_client.py` (Performance et résilience)
 
-Client API optimisé pour les gros volumes de données :
 
-```python
-# 3 techniques d'optimisation implémentées :
-#
-# 1. Pagination avec start=-1 + filtre >ID (pas de COUNT)
-#    → Complexité O(1) par page au lieu de O(n)
-#
-# 2. Filtrage server-side (status, assignee, group)
-#    → Bitrix24 filtre dans sa BDD SQL, pas Python en mémoire
-#    → Sur 1M de tâches avec filtre: 1 page vs 20 000 pages
-#
-# 3. Retry avec exponential backoff (1s, 2s, 3s)
-#    → Gère les erreurs QUERY_LIMIT_EXCEEDED (429)
-```
+### 2.1.2 Client Bitrix24
+Un seul `Bitrix24Client()` est partagé par tous les outils :
+
+- **Réutilise la session HTTP** (TCP keep-alive) → évite de recréer une connexion à chaque appel.
+- **Centralise le rate limiting** → un seul point de contrôle du débit API.
+- **Simplifie la configuration** → le webhook est défini à un seul endroit (`.env`).
+
+Le client est **stateless** : chaque appel API est indépendant, donc il n'y a pas de conflit en cas d'accès concurrent.
+
+- Il est également optimisé pour les gros volumes de données grâce à 3 techniques :
+
+1. **Pagination avec `start=-1` + filtre `>ID`** (pas de `COUNT`) → complexité O(1) par page au lieu de O(n).
+2. **Filtrage server-side** (status, assignee, group) → Bitrix24 filtre dans sa BDD SQL, pas Python en mémoire. Sur 1M de tâches avec filtre : 1 page vs 20 000 pages.
+3. **Retry avec exponential backoff** (1s, 2s, 3s) → gère les erreurs `QUERY_LIMIT_EXCEEDED` (429).
 
 **Exemple concret de filtrage server-side** :
 
@@ -153,10 +150,6 @@ User: "Montre les tâches en cours de Karim"
   
   Total: 3 requêtes pour 130 résultats (filtrés par la BDD)
 ```
-
-
-
----
 
 ## 3. Le pattern ReAct — Boucle décisionnelle
 
@@ -339,64 +332,9 @@ class TaskAgent:
 - `thread_id` dans le `config` → isole la mémoire de chaque conversation.
 - Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
-### 5.2 Client Bitrix24
 
-Un seul `Bitrix24Client()` est partagé par tous les outils :
 
-- **Réutilise la session HTTP** (TCP keep-alive) → évite de recréer une connexion à chaque appel.
-- **Centralise le rate limiting** → un seul point de contrôle du débit API.
-- **Simplifie la configuration** → le webhook est défini à un seul endroit (`.env`).
 
-Le client est **stateless** : chaque appel API est indépendant, donc il n'y a pas de conflit en cas d'accès concurrent. Il est également optimisé pour les gros volumes de données grâce à 3 techniques :
-
-1. **Pagination avec `start=-1` + filtre `>ID`** (pas de `COUNT`) → complexité O(1) par page au lieu de O(n).
-2. **Filtrage server-side** (status, assignee, group) → Bitrix24 filtre dans sa BDD SQL, pas Python en mémoire. Sur 1M de tâches avec filtre : 1 page vs 20 000 pages.
-3. **Retry avec exponential backoff** (1s, 2s, 3s) → gère les erreurs `QUERY_LIMIT_EXCEEDED` (429).
-
-**Exemple concret de filtrage server-side** :
-
-```
-User: "Montre les tâches en cours de Karim"
-
-  L'outil list_tasks traduit en paramètres Bitrix24:
-  ┌─────────────────────────────────────────────────────┐
-  │  POST tasks.task.list                               │
-  │  filter[STATUS] = 3              ← En cours         │
-  │  filter[RESPONSIBLE_ID] = 3      ← ID de Karim      │
-  │  start = -1                      ← Pas de COUNT     │
-  └─────────────────────────────────────────────────────┘
-                    ↓
-  Bitrix24 exécute dans sa BDD SQL:
-    SELECT * FROM tasks WHERE status=3 AND responsible_id=3
-                    ↓
-  Résultat: 8 tâches (sur 1 million) → retournées au LLM
-```
-
-**Exemple concret de pagination** :
-
-```
-  Page 1: filter[>ID] = 0   → reçoit tâches ID 1 à 50
-  Page 2: filter[>ID] = 50  → reçoit tâches ID 51 à 100
-  Page 3: filter[>ID] = 100 → reçoit tâches ID 101 à 130 (fin)
-  
-  Total: 3 requêtes pour 130 résultats (filtrés par la BDD)
-```
-
-### 5.3 Les 7 outils (`tools/`)
-
-Chaque outil est décoré avec `@tool` de LangChain. Le LLM lit le docstring pour décider quand et comment l'appeler :
-
-| Outil | Décorateur | Ce qu'il fait |
-|---|---|---|
-| `create_task` | `@tool` | Crée une tâche (titre, priorité, deadline, groupe, tags) |
-| `list_tasks` | `@tool` | Liste avec filtres server-side (status, assignee, group) |
-| `list_overdue_tasks` | `@tool` | Tâches en retard (deadline passée) |
-| `search_tasks` | `@tool` | Recherche par mot-clé (filtre `%TITLE%`) |
-| `update_task` | `@tool` | Modifie titre, status, priorité, deadline, tags, assignee |
-| `delete_task` | `@tool` | Supprime une tâche par ID |
-| `find_user` | `@tool` | Cherche un utilisateur par nom/prénom |
-
----
 
 ## 6. Client API Bitrix24 — Pagination et filtrage
 
@@ -577,38 +515,6 @@ python app.py
 
 Ouvrir [http://localhost:5000](http://localhost:5000) dans le navigateur.
 
----
-
-## 10. Structure du projet
-
-```
-App5/
-├── app.py                      # Serveur Flask — routes API, sessions, persistance JSON
-├── config.py                   # Chargement des variables d'environnement (.env)
-├── prompt.py                   # System prompt de l'agent (instructions, codes status, exemples)
-├── requirements.txt            # Dépendances Python
-│
-├── services/
-│   ├── agent.py                # TaskAgent — LangGraph ReAct + MemorySaver + auto-recovery
-│   └── bitrix24_client.py      # Client API — pagination start=-1, retry, filtres server-side
-│
-├── tools/
-│   ├── create_task.py          # Création avec résolution dates + assignees
-│   ├── list_tasks.py           # Liste avec filtres server-side + résolution noms de groupes
-│   ├── search_tasks.py         # Recherche par mot-clé (%TITLE%)
-│   ├── update_task.py          # Modification multi-champs (titre, status, deadline, tags...)
-│   ├── delete_task.py          # Suppression par ID
-│   └── find_user.py            # Recherche utilisateur par nom/prénom
-│
-├── templates/
-│   └── index.html              # Interface chat avec sidebar et exemples catégorisés
-│
-└── static/
-    ├── style.css               # Thème dark grey premium, sidebar responsive
-    └── script.js               # Logique frontend — chat, sidebar, CRUD conversations
-```
-
----
 
 ## 11. API REST du serveur Flask
 
