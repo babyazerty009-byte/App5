@@ -157,7 +157,7 @@ Boucle:
 
 Sortie:
   AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-  
+
 ```
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
@@ -211,10 +211,6 @@ L'historique de la sidebar est sauvegardé sur disque pour survivre aux redémar
 Si l'historique en mémoire est corrompu (ex: changement de compte Bitrix24 mid-session), l'agent détecte l'erreur `INVALID_CHAT_HISTORY`, efface la mémoire du thread concerné, et réessaie automatiquement.
 
 ---
-
-
-
-- Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
 
 
 
