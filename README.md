@@ -157,7 +157,8 @@ Boucle:
 
 Sortie:
   AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-
+  
+```
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
 
