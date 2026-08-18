@@ -66,11 +66,11 @@ Les modèles disponibles utilisé sont soumis à des limites de requêtes et de 
   <img src="Architecture de l'agent.png" alt="Architecture de l'agent" width="3000">
 </p>
 
-### Client unique (Singleton)
+### Client Bitrix24
 
 Un seul `Bitrix24Client()` est partagé par tous les outils :
 
-- **Réutilise la session HTTP** (TCP keep-alive) → réduit la latence.
+- **Réutilise la session HTTP** (TCP keep-alive) → évite de recréer une connexion à chaque appel.
 - **Centralise le rate limiting** → un seul point de contrôle du débit API.
 - **Simplifie la configuration** → le webhook est défini à un seul endroit (`.env`).
 
