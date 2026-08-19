@@ -141,7 +141,7 @@ Exemple de flux pour `"Repousse la tâche 12 à lundi et mets-la en haute priori
 <p align="center">
   <img src="Docs/task_update_example.png"
        alt="task_update_example"
-       width="550">
+       width="700">
 </p>
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
