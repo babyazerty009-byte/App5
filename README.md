@@ -7,17 +7,15 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 
 ## Table des matières
 
-1. [Présentation et technologies](#1-Présentation-et-technologies)
-2. [Architecture de l'agent](#2-architecture-de-lagent)
-3. [Le pattern ReAct — Boucle décisionnelle](#3-le-pattern-react--boucle-décisionnelle)
-4. [Les 7 outils de l'agent](#4-les-7-outils-de-lagent)
-5. [Composants clés du code](#5-composants-clés-du-code)
-6. [Client API Bitrix24 — Pagination et filtrage](#6-client-api-bitrix24--pagination-et-filtrage)
-7. [Gestion de la mémoire conversationnelle](#7-gestion-de-la-mémoire-conversationnelle)
-8. [Interface utilisateur](#8-interface-utilisateur)
-9. [Installation et configuration](#9-installation-et-configuration)
-10. [Structure du projet](#10-structure-du-projet)
-11. [API REST du serveur Flask](#11-api-rest-du-serveur-flask)
+1. [Architecture de l'agent](#1-architecture-de-lagent)
+2. [Technologies utilisées](#2technologies-utilisées)
+3. [Les principaux composants de LangGraph](#3-les-principaux-composants-de-langgraph)
+   - [3.1 LLMs utilisés](#31-groq-llm-gratuite-et-stratégie-multi-modèles)
+   - [3.2 Les tools de l'agent](#32-les-7-tools-de-lagent)
+   - [3.3 La mémoire conversationnelle](#33-gestion-de-la-mémoire-conversationnelle)
+4. [Client Bitrix24](#4-client-bitrix24)
+5. [Installation et configuration](#5-installation-et-configuration)
+
 
 ---
 
