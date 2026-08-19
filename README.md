@@ -25,7 +25,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 <p align="center">
   <img src="Docs/architecture-agent.png"
        alt="Architecture de l'agent"
-       width="600">
+       width="550">
 </p>
 
 ## 2.Technologies utilisées
@@ -73,7 +73,7 @@ class TaskAgent:
 Cette architecture offre trois avantages :
 
 1. **Gestion du contexte :**  `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
-2. **Graphe cyclique :** : Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
+2. **Graphe cyclique :** Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
 3. **Extensibilité :** la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
 
 
@@ -138,24 +138,11 @@ Modifie une tâche existante. Champs modifiables : titre, description, status, d
 
 Exemple de flux pour `"Repousse la tâche 12 à lundi et mets-la en haute priorité "` :
 
-```
-Boucle:
-  AGENT → analyse la requête, identifie: task_id=12,   deadline="lundi", priority="high"
-         → tool_call: update_task(
-             task_id=12,
-             deadline="lundi",    # résolu en ISO: "2026-08-18T18:00:00"
-             priority="high"      # traduit en code Bitrix24: 2
-           )
-  TOOLS → exécute:
-         bitrix24_client.update_task(12, {
-             "DEADLINE": "2026-08-18T18:00:00",
-             "PRIORITY": 2
-         }) → Bitrix24 API 
-
-Sortie:
-  AGENT → "Tâche #12 mise à jour : deadline → lundi 18/08, priorité → haute"
-
-```
+<p align="center">
+  <img src="Docs/task_update_example.png"
+       alt="task_update_example"
+       width="550">
+</p>
 
 L'outil résout les dates relatives et traduit les priorités textuelles en codes numériques avant d'appeler l'API.
 
@@ -175,10 +162,10 @@ Cherche un utilisateur par prénom ou nom de famille. Retourne l'ID, le nom comp
 
 | Niveau | Stockage | Persistance | Contenu |
 |---|---|---|---|
-| **MemorySaver** | RAM (dict Python) | Perdu au redémarrage | Messages LLM par `thread_id` |
+| **MemorySaver** | RAM  | Perdu au redémarrage | Messages LLM par `thread_id` |
 | **conversations.json** | Fichier disque | Persiste au redémarrage | Titres, dates, messages affichés |
 
-### MemorySaver (Contexte LLM):
+##### MemorySaver (Contexte LLM):
 
 Le checkpointer `MemorySaver` sauvegarde automatiquement tous les messages (user, AI, tool) après chaque nœud du graphe. Chaque `thread_id` a son propre historique isolé.
 
@@ -199,7 +186,7 @@ User: "Change son titre en 'vérifier les imprimantes'"
        ↑ Le LLM sait que "son" = tâche #15 grâce à la mémoire
 ```
 
-### conversations.json (Historique persisté):
+##### conversations.json (Historique persisté):
 
 L'historique de la sidebar est sauvegardé sur disque pour survivre aux redémarrages. Seules les conversations avec au moins 1 message sont affichées.
 
