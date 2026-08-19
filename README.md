@@ -25,7 +25,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 <p align="center">
   <img src="Docs/architecture-agent.png"
        alt="Architecture de l'agent"
-       width="500">
+       width="600">
 </p>
 
 ## 2.Technologies utilisées
