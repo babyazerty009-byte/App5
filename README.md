@@ -244,7 +244,7 @@ Sur 1 million de tâches, si le filtre retourne 8 résultats :
 
 ```bash
 git clone <url-du-repo>
-cd App5
+cd Bitrix24_Agent
 pip install -r requirements.txt
 ```
 

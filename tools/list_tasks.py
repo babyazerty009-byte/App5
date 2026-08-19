@@ -1,8 +1,3 @@
-"""
-Tools: List tasks and list overdue tasks from Bitrix24.
-Uses server-side filtering for performance with large datasets.
-"""
-
 from langchain_core.tools import tool
 
 # Status labels for Bitrix24 task statuses

@@ -1,8 +1,3 @@
-"""
-Tool: Search tasks by keyword in Bitrix24.
-Uses server-side %TITLE% filter for efficient search in large datasets.
-"""
-
 from langchain_core.tools import tool
 
 

@@ -1,8 +1,3 @@
-"""
-CLI Entry Point — Bitrix24 conversational agent (App5).
-Alternative to the web UI (app.py). Interactive command-line loop.
-"""
-
 from services.agent import TaskAgent
 
 

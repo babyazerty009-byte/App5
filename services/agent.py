@@ -1,8 +1,3 @@
-"""
-LangGraph Agent Service.
-Creates a ReAct agent with ChatGroq, conversation memory,
-and a shared Bitrix24 client for all tools.
-"""
 
 from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent

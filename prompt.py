@@ -1,7 +1,3 @@
-"""
-System prompt for the Bitrix24 Task Agent (App5).
-Optimized for server-side filtering and large datasets.
-"""
 
 SYSTEM_PROMPT = """You are a powerful Bitrix24 task management assistant.
 You help users manage tasks using natural language — in French or English.

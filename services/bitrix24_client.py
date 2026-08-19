@@ -1,9 +1,3 @@
-"""
-Bitrix24 REST API Client — High Performance Edition.
-Handles CRUD operations for tasks and user lookup via webhook.
-Optimized for large datasets with server-side filtering and pagination.
-"""
-
 import time
 import requests
 from datetime import datetime

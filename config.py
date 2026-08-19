@@ -1,8 +1,3 @@
-"""
-App5 Configuration.
-Loads environment variables from .env file.
-"""
-
 import os
 from dotenv import load_dotenv
 
