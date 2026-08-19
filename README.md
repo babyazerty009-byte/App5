@@ -233,7 +233,7 @@ Le client est **stateless** : chaque appel API est indépendant, donc il n'y a p
 <p align="center">
   <img src="Docs/filtrage-server-side.png"
        alt="Filtrage server-side"
-       width="400">
+       width="500">
 </p>
 Sur 1 million de tâches, si le filtre retourne 8 résultats :
 - **Sans filtre server-side** : 20 000 pages × 50 résultats à télécharger, puis Python filtre → très lent
