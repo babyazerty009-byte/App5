@@ -180,7 +180,7 @@ Cherche un utilisateur par prénom ou nom de famille. Retourne l'ID, le nom comp
 | **MemorySaver** | RAM (dict Python) | Perdu au redémarrage | Messages LLM par `thread_id` |
 | **conversations.json** | Fichier disque | Persiste au redémarrage | Titres, dates, messages affichés |
 
-### MemorySaver — Contexte LLM
+### MemorySaver (Contexte LLM):
 
 Le checkpointer `MemorySaver` sauvegarde automatiquement tous les messages (user, AI, tool) après chaque nœud du graphe. Chaque `thread_id` a son propre historique isolé.
 
@@ -201,7 +201,7 @@ User: "Change son titre en 'vérifier les imprimantes'"
        ↑ Le LLM sait que "son" = tâche #15 grâce à la mémoire
 ```
 
-### conversations.json — Historique persisté
+### conversations.json (Historique persisté):
 
 L'historique de la sidebar est sauvegardé sur disque pour survivre aux redémarrages. Seules les conversations avec au moins 1 message sont affichées.
 
@@ -250,24 +250,8 @@ Sur 1 million de tâches, si le filtre retourne 8 résultats :
 
 ```
 
+## 5. Installation et configuration
 
-
-## 8. Interface utilisateur
-
-- **Thème** : Dark grey premium avec design sombre épuré.
-- **Sidebar** : Historique des conversations avec suppression (icône trash au hover).
-- **Exemples catégorisés** : Suggestions de commandes organisées par catégorie (Gestion, Recherche, Modification) pour guider l'utilisateur.
-- **Responsive** : Sidebar escamotable sur mobile.
-- **Sélecteur de modèle** : Changement de LLM en temps réel (GPT-OSS 120B, GPT-OSS 20B, Qwen 3.6).
-- **Indicateur de connexion** : Vérifie le webhook Bitrix24 au démarrage et affiche le nom de l'utilisateur connecté.
-
----
-
-## 9. Installation et configuration
-
-### Prérequis
-
-- Python 3.10+
 - Un compte Bitrix24 avec un webhook entrant (inbound webhook) avec les permissions `task` et `user`
 - Une clé API Groq gratuite — [console.groq.com](https://console.groq.com)
 
