@@ -138,7 +138,7 @@ Recherche par mot-clé dans le titre via le filtre Bitrix24 `%TITLE%`.
 
 Modifie une tâche existante. Champs modifiables : titre, description, status, deadline, priorité, assignee, groupe, tags.
 
-Exemple de flux pour `« Repousse la tâche 12 à lundi et mets-la en haute priorité »` :
+Exemple de flux pour `"Repousse la tâche 12 à lundi et mets-la en haute priorité "` :
 
 ```
 Boucle:
