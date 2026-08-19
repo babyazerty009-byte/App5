@@ -231,7 +231,7 @@ Le client est **stateless** : chaque appel API est indépendant, donc il n'y a p
 **Exemple concret de filtrage server-side** :
 
 <p align="center">
-  <img src="Docs/filtrage-server-side.jpg"
+  <img src="Docs/filtrage-server-side.png"
        alt="Filtrage server-side"
        width="1600">
 </p>
