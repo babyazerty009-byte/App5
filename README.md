@@ -25,7 +25,7 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 ## 1. Architecture de l'agent
 
 <p align="center">
-  <img src="architecture-agent.png"
+  <img src="Docs/architecture-agent.png"
        alt="Architecture de l'agent"
        width="1600">
 </p>
@@ -45,12 +45,12 @@ L'agent interprète les requêtes, résout les dépendances entre outils de mani
 
 | Composant | Rôle | Exemple dans l'agent |
 |---|---|---|
-| **LLM / ChatModel** | Le cerveau qui génère du texte | `ChatGroq(model="openai/gpt-oss-120b")` |
-| **Prompt Template** | Instructions données au LLM | `SYSTEM_PROMPT` dans `prompt.py` |
-| **Tools** | Fonctions que le LLM peut appeler | `list_tasks`, `create_task`, `find_user`, etc. |
-| **Memory** | Garder le contexte conversationnel | `MemorySaver()` |
+| **LLM / ChatModel** | Le cerveau qui génère du texte | ChatGroq(model="openai/gpt-oss-120b") |
+| **Prompt Template** | Instructions données au LLM | SYSTEM_PROMPT dans `prompt.py` |
+| **Tools** | Fonctions que le LLM peut appeler | list_tasks, create_task, find_user, etc. |
+| **Memory** | Garder le contexte conversationnel | MemorySaver() |
 
-L'agent est créé et configuré en suivant une architecture ReAct avec une mémoire conversationnelle.
+L'agent est créé et configuré suivant une architecture ReAct avec une mémoire conversationnelle.
 
 ```python
 from langchain_groq import ChatGroq                  # LLM via Groq (gratuit)
@@ -74,15 +74,14 @@ class TaskAgent:
 
 Cette architecture offre trois avantages :
 
-1. **Gestion du contexte** — `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
-2. **Graphe cyclique** — Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
-3. **Extensibilité** — la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
+1. **Gestion du contexte :**  `MemorySaver` avec `thread_id` gère automatiquement le contexte conversationnel par session.
+2. **Graphe cyclique :** : Le LLM enchaîne plusieurs outils de manière autonome (Par exemple: l'agent peut d'abord utiliser `find_user` pour retrouver un utilisateur, puis appeler `create_task` avec l'ID obtenu.).
+3. **Extensibilité :** la structure de LangGraph permet d'ajouter par la suite des étapes supplémentaires (une validation avant une opération sensible).
 
 
+### 3.1 Groq (LLM gratuite et stratégie multi-modèles)
 
-### 3.1  Groq (Inférence LLM gratuite et stratégie multi-modèles):
-
-L'inférence LLM est assurée par **Groq** (gratuit). L'utilisation de l'infrastructure LPU de Groq permet d'obtenir des temps de réponse rapides. Le **tool calling** est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l'agent.
+L’exécution des modèles LLM est réalisée avec Groq (gratuit). L’utilisation de l’infrastructure LPU de Groq permet d’obtenir des temps de réponse rapides. Le tool calling est également utilisé afin que le modèle puisse sélectionner et appeler les fonctions disponibles dans l’agent.
 
 Pour garantir la disponibilité continue, l'application propose **3 modèles** accessibles via un sélecteur dans l'interface :
 
@@ -123,7 +122,7 @@ Liste les tâches avec **filtres server-side** envoyés à l'API Bitrix24.
 | status  | "new", "pending", "in_progress", "completed", "deferred" |
 | assignee_name| Filtrer par assignee |
 | group_name | Filtrer par projet |
-| limit  | Nombre max de résultats (défaut: 20) |
+| limit  | Nombre max de résultats |
 
 Les filtres sont traduits en paramètres API (`RESPONSIBLE_ID`, `STATUS`, `GROUP_ID`) et envoyés avec la requête. Bitrix24 filtre dans sa base de données SQL avant de retourner les résultats.
 
@@ -197,7 +196,7 @@ Cela permet les références contextuelles :
 
 ```
 User: "Crée une tâche : vérifier le scanner"
-Bot:  "✅ Tâche #15 créée"
+Bot:  "Tâche #15 créée"
 User: "Change son titre en 'vérifier les imprimantes'"
        ↑ Le LLM sait que "son" = tâche #15 grâce à la mémoire
 ```
@@ -231,22 +230,14 @@ Le client est **stateless** : chaque appel API est indépendant, donc il n'y a p
 
 **Exemple concret de filtrage server-side** :
 
-```
-User: "Montre les tâches en cours de Karim"
-
-  L'outil list_tasks traduit en paramètres Bitrix24:
-  ┌─────────────────────────────────────────────────────┐
-  │  POST tasks.task.list                               │
-  │  filter[STATUS] = 3              ← En cours         │
-  │  filter[RESPONSIBLE_ID] = 3      ← ID de Karim      │
-  │  start = -1                      ← Pas de COUNT     │
-  └─────────────────────────────────────────────────────┘
-                    ↓
-  Bitrix24 exécute dans sa BDD SQL:
-    SELECT * FROM tasks WHERE status=3 AND responsible_id=3
-                    ↓
-  Résultat: 8 tâches (sur 1 million) → retournées au LLM
-```
+<p align="center">
+  <img src="Docs/filtrage-server-side.jpg"
+       alt="Filtrage server-side"
+       width="1600">
+</p>
+Sur 1 million de tâches, si le filtre retourne 8 résultats :
+- **Sans filtre server-side** : 20 000 pages × 50 résultats à télécharger, puis Python filtre → très lent
+- **Avec filtre server-side** : 1 seule page de 8 résultats directement → rapide
 
 **Exemple concret de pagination** :
 
@@ -256,182 +247,10 @@ User: "Montre les tâches en cours de Karim"
   Page 3: filter[>ID] = 100 → reçoit tâches ID 101 à 130 (fin)
   
   Total: 3 requêtes pour 130 résultats (filtrés par la BDD)
-```
-
-## 3. Le pattern ReAct — Boucle décisionnelle
-
-`create_react_agent` crée un graphe à 2 nœuds avec une boucle :
 
 ```
-START ──► [AGENT/LLM] ──► tool_call? ──YES──► [TOOLS] ──► exécute
-               ▲                                  │
-               └──────────────────────────────────┘
-               │
-               └── pas de tool_call ──► réponse finale ──► END
-```
-
-Le **State** (dictionnaire `{messages: [...]}`) est partagé entre les nœuds. Chaque nœud lit et enrichit ce State.
-
-### Exemple — Requête simple (1 outil)
-
-```
-User: "Supprime la tâche 12"
-
-  Boucle 1:
-    AGENT → analyse → tool_call: delete_task(task_id=12)
-    TOOLS → exécute → Bitrix24 API → "Deleted"
-  
-  Retour à AGENT:
-    AGENT → pas besoin d'autre outil → "✅ Tâche #12 supprimée"
-```
-
-### Exemple — Requête multi-étapes (2+ outils)
-
-```
-User: "Crée une tâche pour Karim : vérifier le scanner, pour vendredi"
-
-  Boucle 1:
-    AGENT → "Je ne connais pas l'ID de Karim"
-           → tool_call: find_user(name="Karim")
-    TOOLS → exécute → Bitrix24 API → {id: 3, name: "Karim"}
-
-  Boucle 2:
-    AGENT → "Maintenant j'ai l'ID, je crée la tâche"
-           → tool_call: create_task(
-               title="Vérifier le scanner",
-               assignee_id=3,
-               deadline="vendredi"
-             )
-    TOOLS → exécute → Bitrix24 API → {id: 15, title: "Vérifier le scanner"}
-
-  Sortie:
-    AGENT → "✅ Tâche #15 créée : 'Vérifier le scanner', 
-              assignée à Karim, deadline vendredi"
-```
-
-### Exemple — Mise à jour en masse
-
-```
-User: "Marque toutes les tâches de Karim comme terminées"
-
-  Boucle 1: find_user("Karim") → ID=3
-  Boucle 2: list_tasks(assignee_id=3) → [tâche 5, 8, 12, 15, 19]
-  Boucle 3: update_task(task_id=5, status="completed")
-  Boucle 4: update_task(task_id=8, status="completed")
-  Boucle 5: update_task(task_id=12, status="completed")
-  Boucle 6: update_task(task_id=15, status="completed")
-  Boucle 7: update_task(task_id=19, status="completed")
-  Sortie: "✅ 5 tâches de Karim marquées comme terminées"
-```
-
-L'agent collecte d'abord toutes les tâches, puis fait les mises à jour une par une. La pagination est encapsulée dans `list_tasks` — le LLM ne voit que la liste complète de résultats.
 
 
-
----
-
-- Le client Bitrix24 est une **instance unique partagée** par tous les outils (Singleton pattern).
-
-
-
-
-
-## 6. Client API Bitrix24 — Pagination et filtrage
-
-### 6.1 Filtrage server-side
-
-Les filtres ne sont **jamais appliqués en Python**. Ils sont envoyés comme paramètres de la requête API, et c'est Bitrix24 qui filtre dans sa base de données SQL **avant** de retourner les résultats.
-
-Flux complet d'un filtrage :
-
-```
-User: "Montre les tâches en cours de Karim"
-  ↓
-LLM → find_user("Karim") → ID=3
-LLM → list_tasks(status="in_progress", assignee_id=3)
-  ↓
-list_tasks.py traduit en paramètres Bitrix24:
-  filter = {"STATUS": 3, "RESPONSIBLE_ID": 3}
-  ↓
-Requête API envoyée:
-  POST tasks.task.list
-  {"filter": {"STATUS": 3, "RESPONSIBLE_ID": 3}, "start": -1}
-  ↓
-Bitrix24 exécute côté serveur:
-  SELECT * FROM tasks WHERE status=3 AND responsible_id=3 LIMIT 50
-  ↓
-Résultat: 8 tâches (sur 1 million) → renvoyées directement au LLM
-```
-
-Sur 1 million de tâches, si le filtre retourne 25 résultats :
-- **Sans filtre server-side** : 20 000 pages × 50 résultats à télécharger, puis Python filtre → très lent
-- **Avec filtre server-side** : 1 seule page de 25 résultats directement → rapide
-
-Exemples de filtres utilisés :
-
-| Requête utilisateur | Filtre envoyé à l'API | Opérateur Bitrix24 |
-|---|---|---|
-| Tâches de Karim | `{"RESPONSIBLE_ID": 3}` | Égalité |
-| Tâches en retard | `{"<DEADLINE": "2026-08-17...", "!STATUS": 5}` | Inférieur + Négation |
-| Cherche "scanner" | `{"%TITLE": "scanner"}` | Contient (LIKE) |
-| Tâches du projet X | `{"GROUP_ID": 10}` | Égalité |
-| Tâches urgentes | `{"TAG": "urgent"}` | Égalité |
-| Tâches en cours | `{"STATUS": 3}` | Égalité |
-
-### 6.2 Pagination optimisée (`start=-1`)
-
-Problème de la pagination standard (`start=0, 50, 100...`) : Bitrix24 calcule le **total** de résultats à chaque requête → O(n) sur les gros datasets.
-
-Solution implémentée — pagination par `>ID` :
-
-```python
-def _call_paginated(self, method, params, max_items=200):
-    last_id = 0
-    while len(all_items) < max_items:
-        params["start"] = -1            # Désactive le calcul de total
-        params["filter"][">ID"] = last_id  # Commence après le dernier ID
-        params["order"] = {"ID": "asc"}    # Tri stable
-
-        data = self._call(method, params)
-        items = data["result"]["tasks"]
-
-        if not items:
-            break
-
-        all_items.extend(items)
-        last_id = items[-1]["id"]       # Prochain point de départ
-
-        if len(items) < 50:             # Dernière page
-            break
-```
-
-| Méthode | Requête SQL côté Bitrix24 | Complexité |
-|---|---|---|
-| `start=0` | `SELECT ... LIMIT 50 OFFSET 0` + `COUNT(*)` | O(n) per page |
-| `start=-1` + `>ID` | `SELECT ... WHERE ID > 150 LIMIT 50` | O(1) per page |
-
-### 6.3 Retry avec exponential backoff
-
-Si Bitrix24 retourne une erreur `QUERY_LIMIT_EXCEEDED` (429), le client réessaie avec des délais croissants :
-
-```python
-def _call_with_retry(self, method, params, max_retries=3):
-    for attempt in range(max_retries):
-        try:
-            return self._call(method, params)
-        except Exception as e:
-            if "QUERY_LIMIT_EXCEEDED" in str(e):
-                wait_time = (attempt + 1) * 1.0   # 1s, 2s, 3s
-                time.sleep(wait_time)
-                continue
-            raise
-```
-
-Cela laisse le temps au serveur Bitrix24 de récupérer au lieu de le surcharger avec des requêtes immédiates.
-
-
-
----
 
 ## 8. Interface utilisateur
 
